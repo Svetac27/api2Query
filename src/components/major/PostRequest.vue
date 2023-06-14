@@ -36,7 +36,7 @@ const query = ref('')
 const result = ref([])
 
 const prefix = 'conditions'
-const separator_queryType = 'queryType'
+const separator_ampersand = '%26%26' // &&
 const separator_element = '^'
 
 const arrangePieces = (pieces) => {
@@ -68,10 +68,10 @@ const arrangePieces = (pieces) => {
   return arranged_queries
 }
 const createResult = (query) => {
-  var queri_pieces = query.split(separator_queryType)
+  var queri_pieces = query.split(separator_ampersand)
   var unreordered_queries = []
-  for (var i = 1; i < queri_pieces.length; i++) {
-    var pieces = (separator_queryType + queri_pieces[i]).split(separator_element)
+  for (var i = 0; i < queri_pieces.length; i++) {
+    var pieces = queri_pieces[i].split(separator_element)
     var query_element = arrangePieces(pieces)
     unreordered_queries.push(query_element)
   }
@@ -133,76 +133,4 @@ const clearQuery = () => {
 </template>
 <style lang="scss" scoped>
 @use '@/assets/global.scss' as *;
-.query {
-  .query-request {
-    display: flex;
-    align-items: center;
-    border: 1px solid white;
-    position: relative;
-    &.query-example {
-      padding: 50px 20px;
-    }
-    &.query-action {
-      padding: 20px;
-      .query-button {
-        width: 150px;
-        height: 40px;
-        &.clear {
-          margin-left: 20px;
-        }
-      }
-      input {
-        width: 100%;
-        height: 40px;
-        margin: 0 20px;
-      }
-    }
-    &.query-result {
-      padding: 20px;
-      padding: 0;
-      background-color: $secondary;
-      .result {
-        background-color: rgba($primary, 0.4);
-        color: $primary;
-        height: 100%;
-        width: 100%;
-        padding: 20px;
-      }
-      &.show {
-        visibility: visible;
-      }
-      &.hide {
-        visibility: hidden;
-      }
-    }
-    .info-btn {
-      margin-left: 20px;
-      color: $secondary;
-      background-color: transparent;
-      border: 1px solid $secondary;
-      border-radius: 50%;
-      opacity: 0.6;
-      cursor: pointer;
-    }
-  }
-  .info {
-    width: 85%;
-    position: absolute;
-    top: 100px;
-    left: 100px;
-    border: 1px solid $secondary;
-    background-color: $primary;
-    opacity: 0.9;
-    padding: 20px;
-    z-index: 10;
-    pre {
-      width: 100%;
-      word-wrap: break-word;
-      white-space: pre-wrap;
-    }
-    &.hidden {
-      display: none;
-    }
-  }
-}
 </style>
