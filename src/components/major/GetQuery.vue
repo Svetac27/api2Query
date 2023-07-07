@@ -1,73 +1,54 @@
 <!-- eslint-disable no-prototype-builtins -->
 <script setup>
-import { ref } from 'vue'
-import * as Yup from 'yup'
+import { ref, watch } from 'vue'
 import { onClickOutside } from '@vueuse/core'
+import { checkSchema } from '@/schemas/query.js'
 
 import InputSection from '@/components/basic/InputSection.vue'
 import InputModal from '@/components/basic/InputModal.vue'
 import ConditionsModal from '@/components/basic/ConditionsModal.vue'
 import QueryForm from '@/components/basic/QueryForm.vue'
 
+// import { useAuthStore } from '@/stores/auth.store'
+// const authStore = useAuthStore()
+
 import query_options from '@/assets/data/query_options.js'
+import tables from '@/assets/data/tables.js'
+import example from '@/assets/data/example.js'
+
+const example_request = example.example_request
+const example_result = example.example_result
 
 const info_hidden = ref(true)
 const info_reponse_hidden = ref(true)
-const table = ref('')
+
+const main_table = ref('')
+const reference_table = ref('')
+const query_object = ref({})
+const conditionals = ref('')
+const offsetBy = ref('')
+const limitBy = ref('')
 
 const openGroupedByModal = ref(false)
 const target_grouped_by = ref(null)
 const target_conditions = ref(null)
 const openConditionsModal = ref(false)
-const querry_type_advanced = ref(false)
+const grouped_by_advanced = ref(false)
+const conditions_advanced = ref(false)
 
+const submit_query = ref('')
 const final_query = ref('')
 
-const example_request = `queryType=join^tableReference=users^joinType=left^targetColumn=todos.user_id^localColumn=users.id^groupedBy=todos.status_id$todos.id$users.updated_at$users.id$users.email$todos.action$users$todos.priority^[%users.id=todos.user_id*AND*%users.name=admin]*AND*%26%26queryType=join^joinType=inner^tableReference=status^orderBy=todos.inserted_at^orderSymbol=ASC^limitBy=2500^offsetBy=0^targetColumn=status.id^localColumn=todos.status_id^groupedBy=status$status.id$todos.inserted_at^%status.enum>=0`
-
-const example_result =
-  '[\n' +
-  ' %{\n' +
-  '  “conditions” => “( users.id = todos.user_id AND users.name = ‘admin’ ) AND”,\n' +
-  '  “grouped_by” => “todos.status_id, todos.id, users.updated_at, users.id, users.email, todos.action, users, todos.priority”,\n' +
-  '  “join_type” => “left”,\n' +
-  '  “local_column” => “users.id”,\n' +
-  '  “query_type” => “join”,\n' +
-  '  “table_reference” => “users”,\n' +
-  '  “target_column” => “todos.user_id”\n' +
-  ' },\n' +
-  ' %{\n' +
-  '   “conditions” => “status.enum >= ‘0’“,\n' +
-  '   “grouped_by” => “status, status.id, todos.inserted_at”,\n' +
-  '   “join_type” => “inner”,\n' +
-  '   “limit_by” => “2500",\n' +
-  '   “local_column” => “todos.status_id”,\n' +
-  '   “offset_by” => “0",\n' +
-  '   “order_by” => “todos.inserted_at”,\n' +
-  '   “order_symbol” => “ASC”,\n' +
-  '   “query_type” => “join”,\n' +
-  '   “table_reference” => “status”,\n' +
-  '   “target_column” => “status.id”\n' +
-  ' }\n' +
-  ']\n'
-
-const checkSchema = () => {
-  return Yup.object().shape({
-    tableReference: Yup.string().required('Required'),
-    queryType: Yup.string().required('Required'),
-    joinType: Yup.string(),
-    targetColumn: Yup.string(),
-    localColumn: Yup.string(),
-    orderSymbol: Yup.string(),
-    limitedBy: Yup.string(),
-    offsetBy: Yup.string(),
-    orderBy: Yup.string(),
-    gropuedBy: Yup.array().of(Yup.string())
-  })
-}
+const groupedByModel = ref([])
+const finalGroupedBy = ref('')
+const target_table_options = ref([])
+const local_column_options = ref([])
+const grouped_by_options = ref([])
+const order_by_options = ref([])
+const primary_table = ref('')
+const secondary_table = ref('')
 
 const closeModal = (modal) => {
-  console.log('modal', modal)
   switch (modal) {
     case 'groupedBy':
       openGroupedByModal.value = false
@@ -80,6 +61,74 @@ const closeModal = (modal) => {
   }
 }
 
+// const createGroupedBy = (value) => {
+//   var groupedBy = ''
+//   if (value.length > 0) {
+//     value.forEach((element) => {
+//       groupedBy += element.name + '$'
+//     })
+//     groupedBy = groupedBy.slice(0, -1)
+//   }
+//   return groupedBy
+// }
+const option = ref('')
+const temporary_result = ref('')
+const unique_result = ref('')
+
+const addNewTableFunction = (value) => {
+  option.value = '*' + value + '*%26%26'
+}
+
+const creteQueryFunction = () => {
+  final_query.value = temporary_result.value + submit_query.value + unique_result.value
+}
+
+const onSubmit = (value) => {
+  console.log('value', value)
+  console.log('option', option)
+  console.log('temporary_result', temporary_result)
+  query_object.value = value
+  var group = finalGroupedBy.value ? '^groupedBy=' + finalGroupedBy.value : ''
+  var condit = conditionals.value ? '^' + conditionals.value : ''
+  var symb = value.orderSymbol == 'Ascending' ? 'ASC' : 'DSC'
+  var options_value = option.value ? '^options=' + option.value : ''
+  var temp = temporary_result.value
+  var symbol = value.orderSymbol != undefined ? '^orderSymbol=' + symb : ''
+  var limit = limitBy.value != '' ? '^limitBy=' + limitBy.value : ''
+  var offset = offsetBy.value ? '^offsetBy=' + offsetBy.value : ''
+  var order = value.orderBy ? '^orderBy=' + value.mainTable + '.' + value.orderBy : ''
+  var status = value.status ? '^status' + value.status + '0' : ''
+  unique_result.value = symbol + limit + offset + order + status
+  submit_query.value =
+    temp +
+    'queryType=' +
+    value.queryType +
+    '^tableReference=' +
+    value.tableReference +
+    '^joinType=' +
+    value.joinType +
+    '^targetColumn=' +
+    main_table.value +
+    '.' +
+    value.targetColumn +
+    '^localColumn=' +
+    value.tableReference +
+    '.' +
+    value.localColumn +
+    group +
+    condit
+  if (options_value != '') {
+    temporary_result.value = temporary_result.value + submit_query.value + options_value
+    submit_query.value = ''
+    myForm.value.reset()
+  }
+  option.value = ''
+}
+
+const onInvalidSubmit = (value) => {
+  console.log(value)
+}
+
 onClickOutside(target_grouped_by, () => {
   openGroupedByModal.value = false
 })
@@ -88,13 +137,49 @@ onClickOutside(target_conditions, () => {
   openConditionsModal.value = false
 })
 
-const onSubmit = (value) => {
-  console.log('value', value)
+const getTableOptions = (selection) => {
+  var schema = []
+  tables.forEach((table) => {
+    if (table.name === selection) {
+      schema = table.schema
+    }
+  })
+  return schema
 }
 
-const onInvalidSubmit = (value) => {
-  console.log(value)
+const getOrderByOptions = () => {
+  var firstArray = local_column_options.value
+  var secondArray = grouped_by_options.value
+  order_by_options.value = Array.from(new Set(secondArray.concat(firstArray)))
 }
+
+watch(main_table, () => {
+  local_column_options.value = getTableOptions(main_table.value)
+  primary_table.value = main_table.value
+  local_column_options.value.forEach((element) => {
+    element.table = primary_table.value
+    grouped_by_options.value.push(element)
+  })
+})
+
+watch(reference_table, () => {
+  target_table_options.value = getTableOptions(reference_table.value)
+  secondary_table.value = reference_table.value
+  target_table_options.value.forEach((element) => {
+    element.table = secondary_table.value
+    grouped_by_options.value.push(element)
+  })
+  getOrderByOptions()
+})
+
+watch(groupedByModel, () => {
+  var result = ''
+  groupedByModel.value.forEach((element) => {
+    console.log('ELEMENT', element)
+    result += '$' + element.table + '.' + element.name
+  })
+  finalGroupedBy.value = result.substring(1)
+})
 </script>
 
 <template>
@@ -105,16 +190,29 @@ const onInvalidSubmit = (value) => {
       @invalid-submit="onInvalidSubmit"
       v-slot="{ meta }"
     >
-      {{ meta }}
       <div class="query-request query-action filters">
+        <div class="temporary">
+          <h3 v-if="temporary_result">Temporary Query</h3>
+          <div class="final-result">
+            {{ temporary_result }}
+          </div>
+        </div>
         <div class="table-selection">
+          <input-section
+            name="mainTable"
+            label="Main Table"
+            :options="tables"
+            selection="joinTable"
+            class="table-main"
+            v-model="main_table"
+          />
           <input-section
             name="tableReference"
             label="Table reference"
-            :options="query_options.tableReference"
+            :options="tables"
             selection="tableReference"
-            v-model="table"
             class="table-reference"
+            v-model="reference_table"
           />
           <input-section
             name="queryType"
@@ -131,41 +229,47 @@ const onInvalidSubmit = (value) => {
             class="join-type"
           />
           <input-section
+            v-if="target_table_options.length > 0"
             name="targetColumn"
             label="Target column"
-            :options="query_options.targetColumn"
+            :options="target_table_options"
             selection="targetColumn"
             class="target-column"
           />
           <input-section
+            v-if="local_column_options.length > 0"
             name="localColumn"
             label="Local column"
-            :options="query_options.targetColumn"
+            :options="local_column_options"
             selection="localColumn"
             class="local-column"
           />
-          <input-section
-            name="orderSymbol"
-            label="Order symbol"
-            :options="query_options.orderSymbol"
-            selection="orderSymbol"
-            class="symbol"
-          />
-          <div class="filter checkbox-section grouped-by">
+          <div v-if="grouped_by_options.length > 0" class="filter checkbox-section grouped-by">
             <h3>Grouped By</h3>
             <button
-              type="button"
+              type="submit"
               class="checkbox-input"
               @click="openGroupedByModal = true"
               ref="target"
             >
-              <p class="checkbox-result">Select</p>
+              <div class="checkbox-result">
+                <p>
+                  {{ groupedByModel.length != 0 ? finalGroupedBy : 'Select' }}
+                </p>
+                <span v-if="groupedByModel.length != 0">
+                  {{ finalGroupedBy }}
+                </span>
+              </div>
             </button>
-            <button class="advanced" @click="querry_type_advanced = !querry_type_advanced">
-              {{ querry_type_advanced ? 'Checkbox' : 'Advanced' }}
+            <button
+              type="button"
+              class="btn advanced"
+              @click="grouped_by_advanced = !grouped_by_advanced"
+            >
+              {{ grouped_by_advanced ? 'Checkbox' : 'Advanced' }}
             </button>
           </div>
-          <div class="filter conditions-section grouped-by">
+          <div v-if="primary_table && secondary_table" class="filter conditions-section conditions">
             <h3>Conditions</h3>
             <button
               type="button"
@@ -173,48 +277,85 @@ const onInvalidSubmit = (value) => {
               @click="openConditionsModal = true"
               ref="target"
             >
-              <p class="conditions-result">Select</p>
+              <div class="conditions-result">
+                <p>
+                  {{ conditionals != '' ? conditionals : 'Select' }}
+                </p>
+                <span v-if="conditionals != ''">
+                  {{ conditionals }}
+                </span>
+              </div>
             </button>
-            <button class="advanced" @click="querry_type_advanced = !querry_type_advanced">
-              {{ querry_type_advanced ? 'Modal' : 'Advanced' }}
+            <button
+              type="button"
+              class="btn advanced"
+              @click="conditions_advanced = !conditions_advanced"
+            >
+              {{ conditions_advanced ? 'Modal' : 'Advanced' }}
             </button>
           </div>
         </div>
         <div class="btn-wrapper grid">
           <label for="add-or">New table</label>
-          <button id="add-or">AND</button>
-          <button id="add-or">OR</button>
+          <button
+            type="submit"
+            :disabled="!meta.valid"
+            id="add-or"
+            class="btn"
+            @click="addNewTableFunction('AND')"
+          >
+            AND
+          </button>
+          <button
+            :disabled="!meta.valid"
+            id="add-or"
+            class="btn"
+            @click="addNewTableFunction('OR')"
+          >
+            OR
+          </button>
         </div>
         <div class="unique-fields">
           <input-section
-            name="limitBy"
-            label="Limit by"
-            :options="query_options.limitBy"
-            selection="limitBy"
-            class="limit"
+            name="orderSymbol"
+            label="Order symbol"
+            :options="query_options.orderSymbol"
+            selection="orderSymbol"
+            class="symbol"
           />
+          <div class="input-field limit">
+            <label for="limit_by">Limit by</label>
+            <input name="limitBy" id="limit_by" class="limit" v-model="limitBy" />
+          </div>
+          <div class="input-field offset">
+            <label for="offset_by">Offset By</label>
+            <input name="offsetBy" label="Offset by" class="offset" v-model="offsetBy" />
+          </div>
           <input-section
-            name="offsetBy"
-            label="Offset by"
-            :options="query_options.offsetBy"
-            selection="offsetBy"
-            class="offset"
-          />
-          <input-section
+            v-if="main_table && secondary_table"
             name="orderBy"
             label="Order by"
-            :options="query_options.targetColumn"
+            :options="order_by_options"
             selection="orderBy"
             class="order"
           />
+          <input-section
+            name="status"
+            label="Status"
+            :options="query_options.operators"
+            selection="status"
+            class="symbol"
+          />
         </div>
         <div class="btn-wrapper">
-          <button type="submit">Create query</button>
+          <button type="submit" class="btn" @click="creteQueryFunction()">Create query</button>
         </div>
       </div>
       <div :class="[`query-request result`, final_query ? 'show' : 'hide']">
         <h2>Result</h2>
-        <span>{{ final_query }}</span>
+        <div class="final-result">
+          {{ final_query }}
+        </div>
       </div>
       <div class="query-request query-example">
         <h2>Request</h2>
@@ -233,18 +374,21 @@ const onInvalidSubmit = (value) => {
       <div class="modals">
         <div v-show="openGroupedByModal" class="checkbox-modal">
           <input-modal
+            v-if="grouped_by_options.length > 0"
             name="groupedBy"
-            :options="query_options.targetColumn"
+            :options="grouped_by_options"
             ref="target_grouped_by"
+            v-model="groupedByModel"
             @closeModal="closeModal('groupedBy')"
           />
         </div>
-        <div v-show="openConditionsModal" class="checkbox-modal">
+        <div v-if="openConditionsModal" class="checkbox-modal">
           <conditions-modal
             name="conditionals"
-            :table="table"
-            :options="query_options.conditions"
+            :primary="primary_table"
+            :secondary="secondary_table"
             ref="target_conditions"
+            v-model="conditionals"
             @closeModal="closeModal('conditions')"
           />
         </div>
@@ -255,8 +399,32 @@ const onInvalidSubmit = (value) => {
 <style lang="scss" scoped>
 @use '@/assets/global.scss' as *;
 .query-request {
+  .temporary {
+    display: flex;
+    margin-bottom: 20px;
+    h3 {
+      margin-right: 20px;
+    }
+    .final-result {
+      max-width: 75vw;
+      padding: 0 10px;
+      overflow-wrap: break-word;
+    }
+  }
   &.filters {
     flex-direction: column;
+  }
+  .input-field {
+    display: flex;
+    justify-content: space-between;
+    margin-right: 100px;
+    margin-bottom: 20px;
+    label {
+      width: 180px;
+    }
+    input {
+      height: 30px;
+    }
   }
 }
 .filter {
@@ -265,7 +433,7 @@ const onInvalidSubmit = (value) => {
   justify-content: space-between;
   position: relative;
   width: 100%;
-  margin-bottom: 10px;
+  margin-bottom: 15px;
 
   &.conditions-section,
   &.checkbox-section {
@@ -282,9 +450,31 @@ const onInvalidSubmit = (value) => {
       padding: 0;
       .conditions-result,
       .checkbox-result {
-        display: flex;
-        opacity: 0.7;
+        display: block;
         padding: 0 10px;
+        p {
+          opacity: 0.7;
+          overflow: hidden;
+          white-space: nowrap;
+          text-overflow: ellipsis;
+        }
+        span {
+          display: none;
+        }
+        &:hover {
+          span {
+            display: flex;
+            background-color: white;
+            position: absolute;
+            top: 50%;
+            left: 25%;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0px 2px 10px rgba(29, 37, 45, 0.15);
+            max-width: 80%;
+            word-break: break-all;
+          }
+        }
       }
     }
     .checkbox-input {
@@ -293,6 +483,9 @@ const onInvalidSubmit = (value) => {
     .conditions-input {
       margin-left: 35px;
     }
+  }
+  &.table-main {
+    z-index: 21;
   }
   &.table-reference {
     z-index: 20;
@@ -316,7 +509,7 @@ const onInvalidSubmit = (value) => {
     z-index: 14;
   }
   &.conditions {
-    z-index: 14;
+    z-index: 13;
   }
   &.limit {
     z-index: 12;
@@ -326,6 +519,9 @@ const onInvalidSubmit = (value) => {
   }
   &.order {
     z-index: 10;
+  }
+  &.status {
+    z-index: 9;
   }
 }
 .query .query-request.query-action {
@@ -341,6 +537,11 @@ const onInvalidSubmit = (value) => {
   padding: 30px 20px 50px;
   background-color: rgba(white, 0.2);
   display: grid;
+  .final-result {
+    width: 85vw;
+    display: inline-block;
+    word-wrap: break-word;
+  }
   h2 {
     margin-bottom: 20px;
   }

@@ -11,8 +11,12 @@ onMounted(() => {
 
 <template>
   <section>
-    <a :class="{ query: true, active: active_tab === 'query' }" href="/query"> Create Query </a>
-    <a :class="{ response: true, active: active_tab === 'response' }" href="/response">Response</a>
+    <a :class="['btn', { query: true, active: active_tab === 'query' }]" href="/query">
+      Create Query
+    </a>
+    <a :class="['btn', { response: true, active: active_tab === 'response' }]" href="/response"
+      >Response</a
+    >
   </section>
 </template>
 <style lang="scss" scoped>
@@ -24,18 +28,18 @@ section {
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: white;
     margin-right: 10px;
-    height: 40px;
-    width: 120px;
+    width: 150px;
     font-size: 16px;
     color: $primary;
     cursor: pointer;
     &.active {
-      background-color: $active;
-      border: 0;
-      border-bottom: 3px solid #d2d2d2;
-      box-sizing: border-box;
+      box-sizing: content-box;
+      border: 3px solid rgba(#d2d2d2, 0.4);
+      box-sizing: content-box;
+    }
+    &:hover {
+      border: 3px solid rgba(#d2d2d2, 0.4);
     }
   }
 }

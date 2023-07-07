@@ -2,43 +2,44 @@
 import { ref, toRef } from 'vue'
 import { useField } from 'vee-validate'
 import InputSection from '@/components/basic/InputSection.vue'
+import tables from '@/assets/data/tables.js'
+
+import query_options from '@/assets/data/query_options.js'
+
+const operators = query_options.operators
 
 const props = defineProps({
   name: {
     type: String,
     required: true
   },
-  table: {
+  primary: {
     type: String,
     default: ''
   },
-  options: {
-    type: Array,
-    required: true
+  secondary: {
+    type: String,
+    default: ''
+  },
+  modelValue: {
+    type: String,
+    default: ''
   }
 })
 
-const emit = defineEmits(['closeModal', 'onBlur'])
-
-const result = ref([])
-const options = ref(props.options)
+const emit = defineEmits(['closeModal', 'onBlur', 'update:modelValue'])
 const name = toRef(props, 'name')
-const conditions = ref()
-const operator = ref()
 
-const operators = [
-  { name: 'Equal (=)', value: '=' },
-  { name: 'More or Equal (>=)', value: '>=' },
-  { name: 'Less or Equal (<=)', value: '<=' },
-  { name: 'Less (<)', value: '<' },
-  { name: 'More (>)', value: '>' },
-  { name: 'Contein', value: 'HAS' }
-]
-const {
-  value: inputValue,
-  // errorMessage,
-  handleBlur
-} = useField(name, undefined, {
+var tab = []
+const first_table = ref('')
+const first_field = ref('')
+const operator = ref('')
+const second_table = ref('')
+const second_field = ref('')
+const condition = ref('')
+const section = ref('')
+
+const { value: inputValue, handleBlur } = useField(name, undefined, {
   initialValue: props.value
 })
 
@@ -47,25 +48,72 @@ const onInputBlur = (event) => {
   emit('onBlur', event)
 }
 
-const addNew = () => {
-  console.log('addNew')
-  console.log(conditions.value)
-  console.log(operator.value)
-  console.log(tip.value)
+const getOperator = (operator) => {
+  var operator_object = {}
+  operators.forEach((obj) => {
+    if (obj.name == operator) {
+      operator_object = obj
+    }
+  })
+  return operator_object.value
+}
+const getCondition = (oper) => {
+  var condition =
+    '%' +
+    first_table.value +
+    '.' +
+    first_field.value +
+    getOperator(operator.value) +
+    second_table.value +
+    '.' +
+    second_field.value +
+    oper
+  first_table.value = ''
+  first_field.value = ''
+  operator.value = ''
+  second_table.value = ''
+  second_field.value = ''
+  return condition
+}
+
+const newFunction = (action) => {
+  switch (action) {
+    case 'add':
+      condition.value += getCondition('*AND*')
+      break
+    case 'or':
+      condition.value += getCondition('*OR*')
+      break
+    case 'section':
+      if (props.modelValue != '' && section.value == '') {
+        section.value = props.modelValue
+      }
+      condition.value += getCondition('')
+      var and = section.value != '' ? '*AND*' : ''
+      console.log(section.value, 'SECTION')
+      section.value += and + '[' + condition.value + ']'
+      condition.value = ''
+      break
+  }
 }
 
 const saveOptions = () => {
-  var final_result = []
-  options.value.forEach((element, index) => {
-    if (result.value[index]) {
-      element.checked = true
-      final_result.push(element)
-    } else {
-      element.checked = false
-    }
-  })
-  inputValue.value = final_result
+  emit('update:modelValue', section.value)
   emit('closeModal')
+}
+
+const getOptions = (choose, table) => {
+  switch (choose) {
+    case 'table':
+      if (table == undefined) tab = [{ name: props.primary }, { name: props.secondary }]
+      else {
+        tab = tab.filter((obj) => obj.name !== table)
+      }
+      return tab
+    case 'field':
+      var options = tables.find((element) => element.name === table)
+      return options.schema
+  }
 }
 
 const closeModal = () => {
@@ -75,32 +123,100 @@ const closeModal = () => {
 <template>
   <div class="modal">
     <button type="button" @click="closeModal" class="close-icon">&#10005;</button>
-    <div v-if="table == ''" class="empty-table">First select Table reference, please</div>
-    <div v-else class="conditions-wrapper">
+    <div class="conditions-wrapper">
       <label>Select Conditions</label>
+      <div v-if="modelValue != '' || section">
+        <span>Condition Section: {{ modelValue ? modelValue : section }}</span>
+      </div>
+      <div v-if="condition">
+        <span>Condition: {{ condition }}</span>
+      </div>
       <div class="conditions">
-        <span>{{ table }}. </span>
-        <select name="conditions" id="conditions" class="">
-          <option value="" disabled selected>Select</option>
-          <option v-for="(item, index) in options" :key="index" value="index" v-modal="conditions">
-            {{ item.name }}
-          </option>
-        </select>
-        <select name="operator" id="operator">
-          <option value="" disabled selected>Select</option>
-          <option v-for="(item, index) in operators" :key="index" value="index" v-modal="operator">
-            {{ item.name }}
-          </option>
-        </select>
-        <input type="text" v-model="tip" class="tip" />
+        <div class="condition-section">
+          <input-section
+            name="first_table"
+            label="Table"
+            :options="getOptions('table')"
+            v-model="first_table"
+            noButton
+          />
+          <input-section
+            v-if="first_table"
+            name="first_field"
+            label="Field"
+            :options="getOptions('field', first_table)"
+            v-model="first_field"
+            noButton
+          />
+        </div>
+        <input-section
+          v-if="first_field"
+          name="operator"
+          label="Operator"
+          :options="operators"
+          v-model="operator"
+          noButton
+        />
+        <div class="condition-section">
+          <input-section
+            v-if="operator"
+            name="second_table"
+            label="Table"
+            :options="getOptions('table', first_table)"
+            v-model="second_table"
+            noButton
+          />
+          <input-section
+            v-if="second_table"
+            name="second_field"
+            label="Field"
+            :options="getOptions('field', second_table)"
+            v-model="second_field"
+            noButton
+          />
+        </div>
       </div>
-      <div class="btn-wrapper">
-        <button type="button" class="save-btn" @blur="onInputBlur" @click="addNew">ADD NEW</button>
-      </div>
-      <div class="btn-wrapper">
-        <button type="button" class="save-btn" @blur="onInputBlur" @click="saveOptions">
-          SAVE OPTIONS
-        </button>
+      <div class="bottom">
+        <div class="btn-wrapper">
+          <button
+            :disabled="second_field == ''"
+            type="button"
+            class="save-btn"
+            @blur="onInputBlur"
+            @click="newFunction('section')"
+          >
+            NEW ARRAY
+          </button>
+          <button
+            :disabled="second_field == ''"
+            type="button"
+            class="save-btn"
+            @blur="onInputBlur"
+            @click="newFunction('add')"
+          >
+            ADD
+          </button>
+          <button
+            :disabled="second_field == ''"
+            type="button"
+            class="save-btn"
+            @blur="onInputBlur"
+            @click="newFunction('or')"
+          >
+            OR
+          </button>
+        </div>
+        <div class="btn-wrapper">
+          <button
+            :disabled="section == ''"
+            type="button"
+            class="save-btn"
+            @blur="onInputBlur"
+            @click="saveOptions"
+          >
+            SAVE OPTIONS
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -138,6 +254,8 @@ const closeModal = () => {
     font-weight: 600;
   }
   .conditions-wrapper {
+    min-width: 740px;
+    min-height: 500px;
     padding: 40px 50px;
     label {
       font-size: 16px;
@@ -145,7 +263,15 @@ const closeModal = () => {
     }
     .conditions {
       margin-top: 20px;
-      display: flex;
+      position: relative;
+      z-index: 5;
+      .condition-section {
+        display: flex;
+      }
+      > .filter {
+        width: 220px;
+      }
+
       span {
         font-size: 18px;
       }
@@ -157,9 +283,15 @@ const closeModal = () => {
         margin-left: 10px;
       }
     }
+    .bottom {
+      position: absolute;
+      bottom: 30px;
+      right: 30px;
+    }
     .btn-wrapper {
       padding-right: 0;
       padding-bottom: 0;
+      grid-gap: 10px;
     }
   }
   .save-btn {

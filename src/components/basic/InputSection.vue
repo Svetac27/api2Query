@@ -18,12 +18,15 @@ const props = defineProps({
     required: true
   },
   selection: {
-    type: String,
-    required: true
+    type: String
   },
   modelValue: {
     type: String,
     default: ''
+  },
+  noButton: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -45,7 +48,7 @@ const onInputBlur = (event) => {
 }
 
 const handleInput = (e) => {
-  inputValue.value = e.target.value
+  inputValue.value = e.target.name
   emit('update:modelValue', inputValue.value)
 }
 </script>
@@ -58,6 +61,7 @@ const handleInput = (e) => {
       :items="options"
       :selection="selection"
       @result="handleInput"
+      :reset="!modelValue"
       class="select"
     />
     <input
@@ -69,7 +73,12 @@ const handleInput = (e) => {
       class="select advanced-input"
       placeholder="Type filter"
     />
-    <button class="advanced" @click="querry_type_advanced = !querry_type_advanced">
+    <button
+      v-if="!noButton"
+      type="button"
+      class="btn advanced"
+      @click="querry_type_advanced = !querry_type_advanced"
+    >
       {{ querry_type_advanced ? 'Dropdown' : 'Advanced' }}
     </button>
     <span v-show="!!errorMessage" :class="{ 'text--error': !!errorMessage }">
@@ -104,8 +113,10 @@ const handleInput = (e) => {
   }
   .text--error {
     position: absolute;
-    right: -100px;
+    left: 150px;
+    bottom: -17px;
     color: red;
+    z-index: -1;
   }
   &.filter-error > .select {
     border: 1px solid red;

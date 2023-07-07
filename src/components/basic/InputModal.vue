@@ -14,10 +14,13 @@ const props = defineProps({
   options: {
     type: Array,
     required: true
+  },
+  modelValue: {
+    type: Array
   }
 })
 
-const emit = defineEmits(['closeModal', 'onBlur'])
+const emit = defineEmits(['update:modelValue', 'closeModal', 'onBlur'])
 
 const result = ref([])
 const options = ref(props.options)
@@ -47,6 +50,7 @@ const saveOptions = () => {
     }
   })
   inputValue.value = final_result
+  emit('update:modelValue', inputValue.value)
   emit('closeModal')
 }
 
@@ -59,10 +63,8 @@ const closeModal = () => {
     <button type="button" @click="closeModal" class="close-icon">&#10005;</button>
     <div class="checkbox-wrapper">
       <div v-for="(check, index) in options" :key="index" class="checkbox">
-        <input :id="check.value" type="checkbox" v-model="result[index]" />
-        <label :for="check.value">
-          {{ check.value }}
-        </label>
+        <input :id="check.name + '-' + check.table" type="checkbox" v-model="result[index]" />
+        <label :for="check.name + '-' + check.table"> {{ check.name }} ({{ check.table }}) </label>
       </div>
     </div>
     <div class="btn-wrapper">
@@ -98,6 +100,8 @@ const closeModal = () => {
     }
   }
   .checkbox-wrapper {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     padding: 40px 50px;
   }
   .checkbox {
