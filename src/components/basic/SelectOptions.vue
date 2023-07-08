@@ -23,6 +23,7 @@ const options = ref(props.items)
 
 const openOptionsModal = () => {
   optionsModal.value = !optionsModal.value
+  options.value = props.items
 }
 
 onClickOutside(target, () => {

@@ -22,8 +22,11 @@ const example_result = example.example_result
 const info_hidden = ref(true)
 const info_reponse_hidden = ref(true)
 
-const main_table = ref('')
-const reference_table = ref('')
+const mainTable = ref('')
+const referenceTable = ref('')
+const joinType = ref('')
+const queryType = ref('')
+
 const query_object = ref({})
 const conditionals = ref('')
 const offsetBy = ref('')
@@ -47,6 +50,7 @@ const grouped_by_options = ref([])
 const order_by_options = ref([])
 const primary_table = ref('')
 const secondary_table = ref('')
+const reset = ref(false)
 
 const closeModal = (modal) => {
   switch (modal) {
@@ -61,43 +65,54 @@ const closeModal = (modal) => {
   }
 }
 
-// const createGroupedBy = (value) => {
-//   var groupedBy = ''
-//   if (value.length > 0) {
-//     value.forEach((element) => {
-//       groupedBy += element.name + '$'
-//     })
-//     groupedBy = groupedBy.slice(0, -1)
-//   }
-//   return groupedBy
-// }
+const createGroupedBy = (value) => {
+  var groupedBy = ''
+  if (value.length > 0) {
+    value.forEach((element) => {
+      groupedBy += element.name + '$'
+    })
+    groupedBy = groupedBy.slice(0, -1)
+  }
+  return groupedBy
+}
+
 const option = ref('')
 const temporary_result = ref('')
 const unique_result = ref('')
 
+const getOperator = (operator) => {
+  var operator_object = {}
+  query_options.operators.forEach((obj) => {
+    if (obj.name == operator) {
+      operator_object = obj
+    }
+  })
+  return operator_object.value
+}
+
 const addNewTableFunction = (value) => {
   option.value = '*' + value + '*%26%26'
+  finalGroupedBy.value = ''
+  conditionals.value = ''
 }
 
 const creteQueryFunction = () => {
-  final_query.value = temporary_result.value + submit_query.value + unique_result.value
+  final_query.value = submit_query.value + unique_result.value
+  // final_query.value = temporary_result.value + submit_query.value + unique_result.value
 }
 
 const onSubmit = (value) => {
-  console.log('value', value)
-  console.log('option', option)
-  console.log('temporary_result', temporary_result)
   query_object.value = value
   var group = finalGroupedBy.value ? '^groupedBy=' + finalGroupedBy.value : ''
   var condit = conditionals.value ? '^' + conditionals.value : ''
   var symb = value.orderSymbol == 'Ascending' ? 'ASC' : 'DSC'
-  var options_value = option.value ? '^options=' + option.value : ''
+  var options_value = option.value ? option.value : ''
   var temp = temporary_result.value
   var symbol = value.orderSymbol != undefined ? '^orderSymbol=' + symb : ''
   var limit = limitBy.value != '' ? '^limitBy=' + limitBy.value : ''
   var offset = offsetBy.value ? '^offsetBy=' + offsetBy.value : ''
   var order = value.orderBy ? '^orderBy=' + value.mainTable + '.' + value.orderBy : ''
-  var status = value.status ? '^status' + value.status + '0' : ''
+  var status = value.status ? '^status' + getOperator(value.status) + '0' : ''
   unique_result.value = symbol + limit + offset + order + status
   submit_query.value =
     temp +
@@ -108,11 +123,11 @@ const onSubmit = (value) => {
     '^joinType=' +
     value.joinType +
     '^targetColumn=' +
-    main_table.value +
+    value.tableReference +
     '.' +
     value.targetColumn +
     '^localColumn=' +
-    value.tableReference +
+    mainTable.value +
     '.' +
     value.localColumn +
     group +
@@ -120,7 +135,6 @@ const onSubmit = (value) => {
   if (options_value != '') {
     temporary_result.value = temporary_result.value + submit_query.value + options_value
     submit_query.value = ''
-    myForm.value.reset()
   }
   option.value = ''
 }
@@ -153,18 +167,18 @@ const getOrderByOptions = () => {
   order_by_options.value = Array.from(new Set(secondArray.concat(firstArray)))
 }
 
-watch(main_table, () => {
-  local_column_options.value = getTableOptions(main_table.value)
-  primary_table.value = main_table.value
+watch(mainTable, () => {
+  local_column_options.value = getTableOptions(mainTable.value)
+  primary_table.value = mainTable.value
   local_column_options.value.forEach((element) => {
     element.table = primary_table.value
     grouped_by_options.value.push(element)
   })
 })
 
-watch(reference_table, () => {
-  target_table_options.value = getTableOptions(reference_table.value)
-  secondary_table.value = reference_table.value
+watch(referenceTable, () => {
+  target_table_options.value = getTableOptions(referenceTable.value)
+  secondary_table.value = referenceTable.value
   target_table_options.value.forEach((element) => {
     element.table = secondary_table.value
     grouped_by_options.value.push(element)
@@ -197,14 +211,15 @@ watch(groupedByModel, () => {
             {{ temporary_result }}
           </div>
         </div>
-        <div class="table-selection">
+        <div ref="myForm" class="table-selection">
           <input-section
+            v-show="!reset"
             name="mainTable"
             label="Main Table"
             :options="tables"
             selection="joinTable"
             class="table-main"
-            v-model="main_table"
+            v-model="mainTable"
           />
           <input-section
             name="tableReference"
@@ -212,7 +227,7 @@ watch(groupedByModel, () => {
             :options="tables"
             selection="tableReference"
             class="table-reference"
-            v-model="reference_table"
+            v-model="referenceTable"
           />
           <input-section
             name="queryType"
@@ -220,6 +235,7 @@ watch(groupedByModel, () => {
             :options="query_options.queryType"
             selection="queryType"
             class="query-type"
+            v-model="queryType"
           />
           <input-section
             name="joinType"
@@ -227,6 +243,7 @@ watch(groupedByModel, () => {
             :options="query_options.joinType"
             selection="joinType"
             class="join-type"
+            v-model="joinType"
           />
           <input-section
             v-if="target_table_options.length > 0"
@@ -332,7 +349,7 @@ watch(groupedByModel, () => {
             <input name="offsetBy" label="Offset by" class="offset" v-model="offsetBy" />
           </div>
           <input-section
-            v-if="main_table && secondary_table"
+            v-if="mainTable && secondary_table"
             name="orderBy"
             label="Order by"
             :options="order_by_options"

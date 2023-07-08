@@ -61,7 +61,6 @@ const handleInput = (e) => {
       :items="options"
       :selection="selection"
       @result="handleInput"
-      :reset="!modelValue"
       class="select"
     />
     <input
